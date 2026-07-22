@@ -102,5 +102,5 @@ Três barreiras antes de qualquer projeto sumir:
 
 ## Documentação
 
-- `docs/` — decisões de design e riscos assumidos
-- `docs/` — planos de implementação
+- [`docs/design.md`](docs/design.md) — decisões de arquitetura, o risco assumido ao
+  custodiar tokens de terceiros e as mitigações adotadas

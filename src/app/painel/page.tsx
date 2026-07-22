@@ -729,31 +729,10 @@ function TokenHelp({ message, onRetry }: { message: string; onRetry: () => void 
         falha na conexao
       </p>
       <p className="h-display mt-2 text-xl">{message}</p>
-      <ol
-        className="mt-5 space-y-2 border-l-2 pl-4 text-sm text-ash"
-        style={{ borderColor: "#2c3036" }}
-      >
-        <li>
-          1. Gere um token em{" "}
-          <a
-            className="text-signal underline underline-offset-4"
-            href="https://vercel.com/account/tokens"
-            target="_blank"
-            rel="noreferrer"
-          >
-            vercel.com/account/tokens
-          </a>
-        </li>
-        <li>
-          2. Crie o arquivo <code className="text-bone">.env.local</code> com{" "}
-          <code className="text-bone">VERCEL_TOKEN=seu_token</code>
-        </li>
-        <li>
-          3. Se for conta de time, adicione tambem{" "}
-          <code className="text-bone">VERCEL_TEAM_ID=team_xxx</code>
-        </li>
-        <li>4. Reinicie o servidor de desenvolvimento</li>
-      </ol>
+      <p className="mt-3 max-w-lg text-sm text-ash">
+        Se o problema persistir, seu token pode ter sido revogado na Vercel. Nesse caso, informe um
+        novo na aba conta.
+      </p>
       <button
         onClick={onRetry}
         className="mt-5 border border-line px-4 py-2.5 text-xs tracking-[0.15em] uppercase transition-colors hover:bg-panel-2"

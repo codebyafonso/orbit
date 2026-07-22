@@ -10,22 +10,6 @@ export class VercelError extends Error {
 
 export type VercelAuth = { token: string; teamId?: string };
 
-/**
- * Credenciais vindas do ambiente. Some quando o login OAuth entrar (Task 5);
- * ate la preserva a mensagem que a interface usa para orientar quem nao
- * configurou o token.
- */
-export function authFromEnv(): VercelAuth {
-  const token = process.env.VERCEL_TOKEN;
-  if (!token) {
-    throw new VercelError(
-      "VERCEL_TOKEN nao configurado. Crie um token em vercel.com/account/tokens e adicione em .env.local",
-      401,
-    );
-  }
-  return { token, teamId: process.env.VERCEL_TEAM_ID };
-}
-
 function withTeam(path: string, teamId?: string) {
   if (!teamId) return path;
   return path + (path.includes("?") ? "&" : "?") + `teamId=${encodeURIComponent(teamId)}`;
