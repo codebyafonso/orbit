@@ -8,7 +8,14 @@ export class VercelError extends Error {
   }
 }
 
-function credentials() {
+export type VercelAuth = { token: string; teamId?: string };
+
+/**
+ * Credenciais vindas do ambiente. Some quando o login OAuth entrar (Task 5);
+ * ate la preserva a mensagem que a interface usa para orientar quem nao
+ * configurou o token.
+ */
+export function authFromEnv(): VercelAuth {
   const token = process.env.VERCEL_TOKEN;
   if (!token) {
     throw new VercelError(
@@ -24,11 +31,14 @@ function withTeam(path: string, teamId?: string) {
   return path + (path.includes("?") ? "&" : "?") + `teamId=${encodeURIComponent(teamId)}`;
 }
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const { token, teamId } = credentials();
-  const res = await fetch(API + withTeam(path, teamId), {
+async function call<T>(auth: VercelAuth, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(API + withTeam(path, auth.teamId), {
     ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: {
+      ...(init?.headers as Record<string, string> | undefined),
+      Authorization: `Bearer ${auth.token}`,
+      "Content-Type": "application/json",
+    },
     cache: "no-store",
   });
 
@@ -66,7 +76,7 @@ export type Project = {
   } | null;
 };
 
-type RawProject = {
+export type RawProject = {
   id: string;
   name: string;
   framework: string | null;
@@ -78,7 +88,7 @@ type RawProject = {
   link?: RawLink;
 };
 
-type RawLink = {
+export type RawLink = {
   type?: string;
   // github
   org?: string;
@@ -92,7 +102,17 @@ type RawLink = {
   slug?: string;
 };
 
-function repoFrom(link?: RawLink): Project["repo"] {
+// A URL vem da API externa: so aceitamos https, para um href nunca virar javascript:
+function safeHttpsUrl(value?: string): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function repoFrom(link?: RawLink): Project["repo"] {
   if (!link?.type) return null;
 
   if (link.type === "github" && link.org && link.repo) {
@@ -106,7 +126,9 @@ function repoFrom(link?: RawLink): Project["repo"] {
     return {
       provider: "gitlab",
       label: `${link.projectNamespace}/${link.projectName}`,
-      url: link.projectUrl ?? `https://gitlab.com/${link.projectNamespace}/${link.projectName}`,
+      url:
+        safeHttpsUrl(link.projectUrl) ??
+        `https://gitlab.com/${link.projectNamespace}/${link.projectName}`,
     };
   }
   if (link.type === "bitbucket" && link.owner && link.slug) {
@@ -129,7 +151,7 @@ type RawDeployment = {
   target?: string | null;
 };
 
-function normalize(p: RawProject): Project {
+export function normalize(p: RawProject): Project {
   const prod = p.targets?.production ?? null;
   const latest = prod ?? p.latestDeployments?.[0] ?? null;
   const alias = p.alias?.find((a) => a.target === "PRODUCTION") ?? p.alias?.[0];
@@ -155,33 +177,54 @@ function normalize(p: RawProject): Project {
   };
 }
 
-export async function listProjects(): Promise<Project[]> {
+const MAX_PROJECTS = 1000;
+
+export async function listProjects(
+  auth: VercelAuth,
+  { max = MAX_PROJECTS }: { max?: number } = {},
+): Promise<{ projects: Project[]; truncated: boolean }> {
   const projects: Project[] = [];
   let next: number | null = null;
+  let truncated = false;
 
   // A API pagina em 100; buscamos tudo para a busca no cliente funcionar de verdade.
   do {
     const qs = new URLSearchParams({ limit: "100" });
     if (next) qs.set("until", String(next));
     const page: { projects: RawProject[]; pagination?: { next: number | null } } = await call(
+      auth,
       `/v10/projects?${qs}`,
     );
     projects.push(...page.projects.map(normalize));
     next = page.pagination?.next ?? null;
-  } while (next && projects.length < 1000);
+    if (next !== null && projects.length >= max) {
+      truncated = true; // o painel avisa em vez de esconder (consumido na Task 8)
+      break;
+    }
+  } while (next !== null);
 
-  return projects;
+  return { projects, truncated };
 }
 
-export async function getProject(idOrName: string): Promise<Project> {
-  return normalize(await call<RawProject>(`/v9/projects/${encodeURIComponent(idOrName)}`));
+export async function getProject(auth: VercelAuth, idOrName: string): Promise<Project> {
+  return normalize(await call<RawProject>(auth, `/v9/projects/${encodeURIComponent(idOrName)}`));
 }
 
-export async function deleteProject(idOrName: string): Promise<void> {
-  await call(`/v9/projects/${encodeURIComponent(idOrName)}`, { method: "DELETE" });
+export async function deleteProject(auth: VercelAuth, idOrName: string): Promise<void> {
+  await call(auth, `/v9/projects/${encodeURIComponent(idOrName)}`, { method: "DELETE" });
 }
 
-export async function whoami(): Promise<{ name: string | null; username: string | null }> {
-  const data = await call<{ user: { name?: string; username?: string } }>("/v2/user");
-  return { name: data.user?.name ?? null, username: data.user?.username ?? null };
+export async function whoami(auth: VercelAuth) {
+  const data = await call<{
+    user: { id: string; name?: string; username?: string; avatar?: string };
+  }>(auth, "/v2/user");
+  if (!data?.user?.id) {
+    throw new VercelError("Resposta inesperada de /v2/user", 502);
+  }
+  return {
+    id: data.user.id,
+    name: data.user?.name ?? null,
+    username: data.user?.username ?? null,
+    avatar: data.user?.avatar ? `https://vercel.com/api/www/avatar/${data.user.avatar}` : null,
+  };
 }
