@@ -18,7 +18,12 @@ async function connect(): Promise<Db | null> {
   const uri = process.env.MONGODB_URI;
   if (!uri) return null;
 
-  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 2000 });
+  // 2s bastam para um Mongo local, mas um cluster remoto acordando (o plano
+  // free do Atlas hiberna) precisa de folga: sem isso a primeira visita do dia
+  // recebe "banco indisponivel" sem motivo.
+  const client = new MongoClient(uri, {
+    serverSelectionTimeoutMS: uri.includes("localhost") ? 2000 : 8000,
+  });
   try {
     await client.connect();
     const db = client.db();

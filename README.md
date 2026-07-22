@@ -52,6 +52,30 @@ npm test        # 89 testes
 npm run build
 ```
 
+## Deploy
+
+O app roda em qualquer host Node; estas instrucoes usam Vercel + MongoDB Atlas.
+
+1. **Banco**: crie um cluster gratuito (M0) no Atlas, um usuario de banco e libere
+   o acesso de rede. As funcoes da Vercel nao tem IP fixo, entao a lista precisa
+   aceitar `0.0.0.0/0` — a protecao real e a senha do usuario do banco, que deve
+   ser longa e exclusiva.
+2. **Projeto**: importe o repositorio na Vercel (ou `vercel link`).
+3. **Variaveis** (Production e Preview):
+
+   | Variavel | Valor |
+   | --- | --- |
+   | `MONGODB_URI` | a connection string do Atlas, com `/orbit` no fim |
+   | `SESSION_SECRET` | 32 bytes em hex, novos — nao reaproveite os locais |
+   | `TOKEN_SECRET` | 32 bytes em hex, diferentes do `SESSION_SECRET` |
+   | `APP_ORIGIN` | `https://seu-dominio` — sem ela o preview de link aponta errado |
+   | `TRUST_PROXY` | `1`, para o limite por IP usar o IP real do visitante |
+
+4. **Deploy**: `vercel --prod` ou push na `main`.
+
+> Guarde a `TOKEN_SECRET` como segredo de verdade. Perde-la torna todos os tokens
+> guardados ilegiveis e obriga cada usuario a informar o dele de novo.
+
 ## Segurança
 
 O projeto custodia credenciais de acesso total a contas de terceiros. As decisões
