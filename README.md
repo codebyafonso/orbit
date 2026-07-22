@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ORBIT — painel dos seus projetos na Vercel
 
-## Getting Started
+Lista todos os projetos hospedados na sua conta Vercel, com status do último deploy,
+link para o site em produção e exclusão protegida por confirmação dupla.
 
-First, run the development server:
+## Como rodar
 
 ```bash
+cp .env.local.example .env.local   # e preencha VERCEL_TOKEN
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Gere o token em https://vercel.com/account/tokens.
+Se os projetos pertencem a um time, preencha também `VERCEL_TEAM_ID`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Como funciona a exclusão
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Três barreiras antes de qualquer projeto sumir:
 
-## Learn More
+1. **Etapa 1** — tela de alerta listando tudo que será perdido + checkbox obrigatório
+   de "entendo que é irreversível".
+2. **Etapa 2** — é preciso digitar o nome exato do projeto e **manter o botão
+   pressionado por ~2s** (soltar antes cancela).
+3. **Servidor** — a rota `DELETE /api/projects/[id]` busca o projeto na Vercel e só
+   executa se o nome enviado bater exatamente com o nome real.
 
-To learn more about Next.js, take a look at the following resources:
+O token nunca vai para o navegador: toda chamada à API da Vercel acontece nas
+rotas de servidor em `src/app/api/`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Estrutura
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Arquivo | Papel |
+| --- | --- |
+| `src/lib/vercel.ts` | cliente da API da Vercel (listar, buscar, apagar, whoami) |
+| `src/app/api/projects/route.ts` | `GET` — lista paginada de projetos |
+| `src/app/api/projects/[id]/route.ts` | `DELETE` — exclusão com revalidação do nome |
+| `src/app/page.tsx` | painel: busca, ordenação, cards, estados de erro |
+| `src/components/DeleteDialog.tsx` | fluxo de confirmação dupla |
