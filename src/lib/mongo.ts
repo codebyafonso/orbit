@@ -29,6 +29,12 @@ async function connect(): Promise<Db | null> {
       .collection("users")
       .createIndex({ email: 1 }, { unique: true })
       .catch((err) => console.error("indice users falhou:", sanitize(err)));
+
+    // Cadastro interrompido some sozinho, sem depender de compensacao.
+    void db
+      .collection("users")
+      .createIndex({ pendingUntil: 1 }, { expireAfterSeconds: 0 })
+      .catch((err) => console.error("indice ttl users falhou:", sanitize(err)));
     void db
       .collection("audit_logs")
       .createIndex({ userId: 1, at: -1 })
@@ -44,6 +50,26 @@ async function connect(): Promise<Db | null> {
       .collection("vercel_tokens")
       .createIndex({ userId: 1 }, { unique: true })
       .catch((err) => console.error("indice userId vercel_tokens falhou:", sanitize(err)));
+
+    // Sessoes revogaveis: sem isto, logout so limpa o cookie daquele navegador
+    // e uma copia do cookie continuaria valida ate o prazo.
+    void db
+      .collection("sessions")
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+      .catch((err) => console.error("indice ttl sessions falhou:", sanitize(err)));
+    void db
+      .collection("sessions")
+      .createIndex({ sid: 1 }, { unique: true })
+      .catch((err) => console.error("indice sid sessions falhou:", sanitize(err)));
+
+    void db
+      .collection("rate_limits")
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+      .catch((err) => console.error("indice ttl rate_limits falhou:", sanitize(err)));
+    void db
+      .collection("rate_limits")
+      .createIndex({ chave: 1, inicioJanela: 1 }, { unique: true })
+      .catch((err) => console.error("indice rate_limits falhou:", sanitize(err)));
 
     return db;
   } catch (err) {

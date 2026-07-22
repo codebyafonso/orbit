@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteProject, getProject, authFromEnv, VercelError } from "@/lib/vercel";
-import { requireDevOnly, requireSameOrigin } from "@/lib/guard";
+import { requireDevOnly } from "@/lib/guard";
+import { requireSameOrigin } from "@/lib/same-origin";
 
 export const dynamic = "force-dynamic";
 
