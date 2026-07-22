@@ -26,8 +26,24 @@ export const metadata: Metadata = {
   description:
     "Veja seus projetos hospedados na Vercel com status de deploy, higiene da conta e exclusao com dupla confirmacao.",
   applicationName: "ORBIT",
-  // Painel de conta: nao deve aparecer em buscador nenhum.
+  // Painel de conta: nao deve aparecer em buscador nenhum. Isto nao impede o
+  // preview ao compartilhar o link — robos de preview leem o Open Graph.
   robots: { index: false, follow: false },
+  // Necessario para o Open Graph montar URLs absolutas da imagem.
+  metadataBase: new URL(process.env.APP_ORIGIN ?? "http://localhost:3000"),
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "ORBIT",
+    title: "ORBIT — seus projetos da Vercel em um so lugar",
+    description:
+      "Radar de higiene, tendencias de deploy e exclusao com dupla confirmacao. Seu token e cifrado e expira sozinho em 7 dias.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ORBIT — seus projetos da Vercel em um so lugar",
+    description: "Radar de higiene, tendencias de deploy e exclusao com dupla confirmacao.",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
