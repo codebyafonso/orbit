@@ -1,4 +1,4 @@
-import { getDb } from "./mongo";
+import { getDb } from "../db/mongo";
 
 /**
  * Limitador por janela fixa, apoiado no MongoDB.

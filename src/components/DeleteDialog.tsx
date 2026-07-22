@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Project } from "@/lib/vercel";
+import type { Project } from "@/lib/vercel/client";
 
 const HOLD_MS = 1800;
 

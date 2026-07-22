@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { randomBytes } from "node:crypto";
 import type { NextResponse } from "next/server";
 import { hexKey } from "./secret";
-import { getDb } from "./mongo";
+import { getDb } from "../db/mongo";
 
 export const SESSION_COOKIE = "orbit_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;

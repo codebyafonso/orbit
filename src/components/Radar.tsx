@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjetoAvaliado } from "@/lib/insights";
+import type { ProjetoAvaliado } from "@/lib/vercel/insights";
 
 const COR_ALERTA: Record<string, string> = {
   "build-quebrado": "#ff4a35",

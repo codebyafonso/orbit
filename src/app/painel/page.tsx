@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Project } from "@/lib/vercel";
+import type { Project } from "@/lib/vercel/client";
 import DeleteDialog, { type DeleteResult } from "@/components/DeleteDialog";
 import TokenGate from "@/components/TokenGate";
 import Radar from "@/components/Radar";
 import Atividade from "@/components/Atividade";
-import type { ProjetoAvaliado, Tendencias } from "@/lib/insights";
-import type { Deployment } from "@/lib/vercel";
-import type { Snapshot } from "@/lib/snapshots";
+import type { ProjetoAvaliado, Tendencias } from "@/lib/vercel/insights";
+import type { Deployment } from "@/lib/vercel/client";
+import type { Snapshot } from "@/lib/db/snapshots";
 
 type ApiResponse = {
   projects?: Project[];

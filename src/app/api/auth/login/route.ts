@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { verifyUser } from "@/lib/users";
-import { startSession } from "@/lib/session";
-import { requireSameOrigin } from "@/lib/same-origin";
-import { rateLimit, resetLimit, clientIp, type RateVerdict } from "@/lib/rate-limit";
-import { asString, asSecret, LIMITES } from "@/lib/input";
+import { verifyUser } from "@/lib/auth/users";
+import { startSession } from "@/lib/auth/session";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
+import { rateLimit, resetLimit, clientIp, type RateVerdict } from "@/lib/auth/rate-limit";
+import { asString, asSecret, LIMITES } from "@/lib/auth/input";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // @node-rs/argon2 e modulo nativo

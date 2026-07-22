@@ -1,8 +1,8 @@
 "use client";
 
-import type { Tendencias } from "@/lib/insights";
-import type { Deployment } from "@/lib/vercel";
-import type { Snapshot } from "@/lib/snapshots";
+import type { Tendencias } from "@/lib/vercel/insights";
+import type { Deployment } from "@/lib/vercel/client";
+import type { Snapshot } from "@/lib/db/snapshots";
 
 type ItemTimeline = Pick<Deployment, "id" | "projectName" | "state" | "target" | "createdAt" | "buildMs">;
 

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { listProjects, listDeployments, VercelError } from "@/lib/vercel";
-import { requireAuth } from "@/lib/api-session";
-import { avaliarProjeto, calcularTendencias } from "@/lib/insights";
-import { registrarSnapshot, historico } from "@/lib/snapshots";
-import { rateLimit } from "@/lib/rate-limit";
+import { listProjects, listDeployments, VercelError } from "@/lib/vercel/client";
+import { requireAuth } from "@/lib/auth/api-session";
+import { avaliarProjeto, calcularTendencias } from "@/lib/vercel/insights";
+import { registrarSnapshot, historico } from "@/lib/db/snapshots";
+import { rateLimit } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 

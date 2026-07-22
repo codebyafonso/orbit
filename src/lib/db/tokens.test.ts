@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("./mongo", () => ({ getDb: vi.fn() }));
 
 import { getDb } from "./mongo";
-import { encryptToken } from "./crypto";
+import { encryptToken } from "../auth/crypto";
 import { saveToken, loadToken, tokenStatus, forgetToken, TOKEN_TTL_DAYS } from "./tokens";
 
 const USER_ID = "665f1f77bcf86cd799439011";

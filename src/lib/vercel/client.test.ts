@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { normalize, repoFrom, listProjects, whoami, VercelError } from "./vercel";
+import { normalize, repoFrom, listProjects, whoami, VercelError } from "./client";
 
 afterEach(() => vi.unstubAllGlobals());
 

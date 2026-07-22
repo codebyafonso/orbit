@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { readSession, type Session } from "./session";
-import { loadToken } from "./tokens";
-import type { VercelAuth } from "./vercel";
+import { loadToken } from "../db/tokens";
+import type { VercelAuth } from "../vercel/client";
 
 /**
  * Sessao valida + token da Vercel do proprio usuario, decifrado em memoria.

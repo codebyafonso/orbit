@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE, openSession, destroySession } from "@/lib/session";
-import { requireSameOrigin } from "@/lib/same-origin";
+import { SESSION_COOKIE, openSession, destroySession } from "@/lib/auth/session";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 export const dynamic = "force-dynamic";
 

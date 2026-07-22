@@ -1,33 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/users", () => ({
+vi.mock("@/lib/auth/users", () => ({
   createUser: vi.fn(),
   verifyUser: vi.fn(),
   deleteUser: vi.fn(),
   activateUser: vi.fn(),
 }));
-vi.mock("@/lib/tokens", () => ({ saveToken: vi.fn() }));
-vi.mock("@/lib/vercel", async () => {
-  const real = await vi.importActual<typeof import("@/lib/vercel")>("@/lib/vercel");
+vi.mock("@/lib/db/tokens", () => ({ saveToken: vi.fn() }));
+vi.mock("@/lib/vercel/client", async () => {
+  const real = await vi.importActual<typeof import("@/lib/vercel/client")>("@/lib/vercel/client");
   return { whoami: vi.fn(), VercelError: real.VercelError };
 });
-vi.mock("@/lib/session", () => ({
+vi.mock("@/lib/auth/session", () => ({
   startSession: vi.fn(),
   readSession: vi.fn(),
   destroySession: vi.fn(),
   SESSION_COOKIE: "orbit_session",
 }));
-vi.mock("@/lib/rate-limit", () => ({
+vi.mock("@/lib/auth/rate-limit", () => ({
   rateLimit: vi.fn(),
   resetLimit: vi.fn(),
   clientIp: () => "1.2.3.4",
 }));
 
-import { createUser, verifyUser, deleteUser, activateUser } from "@/lib/users";
-import { saveToken } from "@/lib/tokens";
-import { whoami, VercelError } from "@/lib/vercel";
-import { startSession } from "@/lib/session";
-import { rateLimit, resetLimit } from "@/lib/rate-limit";
+import { createUser, verifyUser, deleteUser, activateUser } from "@/lib/auth/users";
+import { saveToken } from "@/lib/db/tokens";
+import { whoami, VercelError } from "@/lib/vercel/client";
+import { startSession } from "@/lib/auth/session";
+import { rateLimit, resetLimit } from "@/lib/auth/rate-limit";
 import { POST as register } from "./register/route";
 import { POST as login } from "./login/route";
 

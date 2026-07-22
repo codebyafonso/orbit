@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { deleteProject, getProject, VercelError } from "@/lib/vercel";
-import { requireAuth } from "@/lib/api-session";
-import { requireSameOrigin } from "@/lib/same-origin";
-import { recordDeletion } from "@/lib/audit";
+import { deleteProject, getProject, VercelError } from "@/lib/vercel/client";
+import { requireAuth } from "@/lib/auth/api-session";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
+import { recordDeletion } from "@/lib/db/audit";
 
 export const dynamic = "force-dynamic";
 

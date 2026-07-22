@@ -1,6 +1,6 @@
 import { hash, verify } from "@node-rs/argon2";
 import { ObjectId, type Document } from "mongodb";
-import { getDb } from "./mongo";
+import { getDb } from "../db/mongo";
 
 const MIN_SENHA = 10;
 

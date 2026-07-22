@@ -1,5 +1,6 @@
 import AuthForm from "@/components/AuthForm";
 
+// Sem metadata proprio: a landing usa o titulo completo definido no layout raiz.
 export const dynamic = "force-dynamic";
 
 const MENSAGENS: Record<string, string> = {

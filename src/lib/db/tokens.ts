@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import { getDb } from "./mongo";
-import { encryptToken, decryptToken } from "./crypto";
+import { encryptToken, decryptToken } from "../auth/crypto";
 
 export const TOKEN_TTL_DAYS = 7;
 const TTL_MS = TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;

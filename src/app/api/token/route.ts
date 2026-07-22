@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { readSession } from "@/lib/session";
-import { tokenStatus, saveToken, forgetToken, TOKEN_TTL_DAYS } from "@/lib/tokens";
-import { whoami, VercelError } from "@/lib/vercel";
-import { requireSameOrigin } from "@/lib/same-origin";
-import { asString, LIMITES } from "@/lib/input";
+import { readSession } from "@/lib/auth/session";
+import { tokenStatus, saveToken, forgetToken, TOKEN_TTL_DAYS } from "@/lib/db/tokens";
+import { whoami, VercelError } from "@/lib/vercel/client";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
+import { asString, LIMITES } from "@/lib/auth/input";
 
 export const dynamic = "force-dynamic";
 

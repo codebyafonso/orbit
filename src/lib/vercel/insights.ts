@@ -1,4 +1,4 @@
-import type { Project, Deployment } from "./vercel";
+import type { Project, Deployment } from "./client";
 
 const DIA = 86_400_000;
 export const DIAS_PARADO = 90;

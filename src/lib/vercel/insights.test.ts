@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { avaliarProjeto, calcularTendencias, formatarPeriodo, DIAS_PARADO } from "./insights";
-import type { Project, Deployment } from "./vercel";
+import type { Project, Deployment } from "./client";
 
 const DIA = 86_400_000;
 const AGORA = new Date("2026-07-22T12:00:00Z").getTime();

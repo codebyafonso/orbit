@@ -18,8 +18,16 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ORBIT // controle de deploys",
-  description: "Painel de controle dos seus projetos hospedados na Vercel.",
+  // O template deixa cada pagina nomear so a propria secao: "Painel · ORBIT".
+  title: {
+    default: "ORBIT — seus projetos da Vercel em um so lugar",
+    template: "%s · ORBIT",
+  },
+  description:
+    "Veja seus projetos hospedados na Vercel com status de deploy, higiene da conta e exclusao com dupla confirmacao.",
+  applicationName: "ORBIT",
+  // Painel de conta: nao deve aparecer em buscador nenhum.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

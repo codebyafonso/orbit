@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ObjectId } from "mongodb";
 
-vi.mock("./mongo", () => ({ getDb: vi.fn() }));
+vi.mock("../db/mongo", () => ({ getDb: vi.fn() }));
 
-import { getDb } from "./mongo";
+import { getDb } from "../db/mongo";
 import { createUser, verifyUser } from "./users";
 
 const ID = new ObjectId("665f1f77bcf86cd799439011");

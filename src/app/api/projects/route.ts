@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { listProjects, whoami, VercelError } from "@/lib/vercel";
-import { requireAuth } from "@/lib/api-session";
+import { listProjects, whoami, VercelError } from "@/lib/vercel/client";
+import { requireAuth } from "@/lib/auth/api-session";
 
 export const dynamic = "force-dynamic";
 
