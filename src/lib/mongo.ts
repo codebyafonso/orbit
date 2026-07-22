@@ -23,8 +23,8 @@ async function connect(): Promise<Db | null> {
     await client.connect();
     const db = client.db();
 
-    // Indices sao best-effort: uma falha aqui (ex.: duplicata legada em
-    // vercelUserId) nao pode derrubar um banco saudavel.
+    // Indices sao best-effort: uma falha aqui (ex.: duplicata legada de email)
+    // nao pode derrubar um banco saudavel.
     void db
       .collection("users")
       .createIndex({ email: 1 }, { unique: true })

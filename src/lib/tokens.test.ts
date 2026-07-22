@@ -4,102 +4,171 @@ vi.mock("./mongo", () => ({ getDb: vi.fn() }));
 
 import { getDb } from "./mongo";
 import { encryptToken } from "./crypto";
-import { saveToken, loadToken, tokenStatus, TOKEN_TTL_DAYS } from "./tokens";
+import { saveToken, loadToken, tokenStatus, forgetToken, TOKEN_TTL_DAYS } from "./tokens";
 
 const USER_ID = "665f1f77bcf86cd799439011";
+const OUTRO_ID = "665f1f77bcf86cd799439022";
+const TOKEN = "vcp_abcdefghijklmnop1234";
 
 beforeEach(() => {
   process.env.TOKEN_SECRET = "1".repeat(64);
+  process.env.SESSION_SECRET = "0".repeat(64);
   vi.mocked(getDb).mockReset();
 });
 
+/** Fake mínimo do driver, registrando qual coleção foi usada. */
+function fakeDb(handlers: Record<string, unknown>) {
+  const collection = vi.fn(() => handlers);
+  vi.mocked(getDb).mockResolvedValue({ collection } as never);
+  return collection;
+}
+
+const daqui = (ms: number) => new Date(Date.now() + ms);
+
 describe("saveToken", () => {
-  it("grava cifrado, com last4 e expiracao de 7 dias", async () => {
+  it("grava cifrado na colecao certa, com upsert e expiracao de 7 dias", async () => {
     const updateOne = vi.fn().mockResolvedValue({});
-    vi.mocked(getDb).mockResolvedValue({ collection: () => ({ updateOne }) } as never);
+    const collection = fakeDb({ updateOne });
 
     const expiresAt = await saveToken({
       userId: USER_ID,
-      token: "vcp_abcdefgh1234",
+      token: TOKEN,
       vercelUsername: "afonso",
     });
 
-    const doc = updateOne.mock.calls[0][1].$set;
-    expect(doc.ciphertext).not.toContain("vcp_abcdefgh1234");
-    expect(doc.last4).toBe("1234");
+    expect(collection).toHaveBeenCalledWith("vercel_tokens");
+
+    const [filtro, update, opcoes] = updateOne.mock.calls[0];
+    expect(String(filtro.userId)).toBe(USER_ID);
+    expect(opcoes).toEqual({ upsert: true });
+    expect(update.$set.ciphertext).not.toContain(TOKEN);
+    expect(update.$set.last4).toBe("1234");
+    // createdAt so na criacao: trocar o token nao pode reescrever a origem
+    expect(update.$setOnInsert.createdAt).toBeInstanceOf(Date);
+    expect(update.$set.createdAt).toBeUndefined();
     expect(Math.round((expiresAt.getTime() - Date.now()) / 86_400_000)).toBe(TOKEN_TTL_DAYS);
+  });
+
+  it("recusa userId invalido sem tocar no banco", async () => {
+    await expect(
+      saveToken({ userId: "nao-e-objectid", token: TOKEN, vercelUsername: null }),
+    ).rejects.toThrow(/Usuario invalido/);
+    expect(getDb).not.toHaveBeenCalled();
+  });
+
+  it("recusa token curto demais", async () => {
+    await expect(
+      saveToken({ userId: USER_ID, token: "vcp_x", vercelUsername: null }),
+    ).rejects.toThrow(/Token/);
   });
 
   it("lanca quando o banco esta fora", async () => {
     vi.mocked(getDb).mockResolvedValue(null);
     await expect(
-      saveToken({ userId: USER_ID, token: "vcp_x", vercelUsername: null }),
-    ).rejects.toThrow();
+      saveToken({ userId: USER_ID, token: TOKEN, vercelUsername: null }),
+    ).rejects.toThrow(/Banco indisponivel/);
   });
 });
 
 describe("loadToken", () => {
+  it("decifra o token do proprio dono", async () => {
+    fakeDb({
+      findOne: async () => ({
+        ciphertext: encryptToken(TOKEN, USER_ID),
+        expiresAt: daqui(86_400_000),
+        teamId: null,
+      }),
+    });
+    expect((await loadToken(USER_ID))?.token).toBe(TOKEN);
+  });
+
   it("devolve null quando nao ha documento", async () => {
-    vi.mocked(getDb).mockResolvedValue({
-      collection: () => ({ findOne: async () => null }),
-    } as never);
+    fakeDb({ findOne: async () => null });
     expect(await loadToken(USER_ID)).toBeNull();
   });
 
-  it("decifra o token guardado", async () => {
-    vi.mocked(getDb).mockResolvedValue({
-      collection: () => ({
-        findOne: async () => ({
-          ciphertext: encryptToken("vcp_guardado"),
-          expiresAt: new Date(Date.now() + 86_400_000),
-          teamId: null,
-        }),
-      }),
-    } as never);
-    expect((await loadToken(USER_ID))?.token).toBe("vcp_guardado");
+  it("devolve null para userId invalido", async () => {
+    expect(await loadToken("nao-e-objectid")).toBeNull();
+    expect(getDb).not.toHaveBeenCalled();
   });
 
   it("trata documento vencido como ausente, sem esperar o ttl do mongo", async () => {
-    vi.mocked(getDb).mockResolvedValue({
-      collection: () => ({
-        findOne: async () => ({
-          ciphertext: encryptToken("vcp_x"),
-          expiresAt: new Date(Date.now() - 1000),
-        }),
-      }),
-    } as never);
+    fakeDb({
+      findOne: async () => ({ ciphertext: encryptToken(TOKEN, USER_ID), expiresAt: daqui(-1000) }),
+    });
     expect(await loadToken(USER_ID)).toBeNull();
   });
 
-  it("devolve null quando a chave nao decifra o documento", async () => {
-    vi.mocked(getDb).mockResolvedValue({
-      collection: () => ({
-        findOne: async () => ({
-          ciphertext: "Y29udGV1ZG8gcXVlIG5hbyBkZWNpZnJh",
-          expiresAt: new Date(Date.now() + 86_400_000),
-        }),
-      }),
-    } as never);
+  it("trata documento sem expiresAt como invalido, e nao como eterno", async () => {
+    fakeDb({ findOne: async () => ({ ciphertext: encryptToken(TOKEN, USER_ID) }) });
     expect(await loadToken(USER_ID)).toBeNull();
+  });
+
+  it("recusa e apaga ciphertext copiado de outro usuario", async () => {
+    const deleteOne = vi.fn().mockResolvedValue({});
+    fakeDb({
+      // documento do OUTRO_ID colado no registro deste usuario
+      findOne: async () => ({
+        ciphertext: encryptToken(TOKEN, OUTRO_ID),
+        expiresAt: daqui(86_400_000),
+      }),
+      deleteOne,
+    });
+
+    expect(await loadToken(USER_ID)).toBeNull();
+    expect(deleteOne).toHaveBeenCalledTimes(1); // registro inutil nao fica no banco
+  });
+
+  it("apaga o registro quando a chave nao decifra mais", async () => {
+    const cifradoComOutraChave = encryptToken(TOKEN, USER_ID);
+    process.env.TOKEN_SECRET = "3".repeat(64);
+
+    const deleteOne = vi.fn().mockResolvedValue({});
+    fakeDb({
+      findOne: async () => ({ ciphertext: cifradoComOutraChave, expiresAt: daqui(86_400_000) }),
+      deleteOne,
+    });
+
+    expect(await loadToken(USER_ID)).toBeNull();
+    expect(deleteOne).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("tokenStatus", () => {
   it("expoe apenas metadados, nunca o token", async () => {
-    const expiresAt = new Date(Date.now() + 86_400_000);
-    vi.mocked(getDb).mockResolvedValue({
-      collection: () => ({
-        findOne: async () => ({
-          ciphertext: encryptToken("vcp_secreto"),
-          last4: "1234",
-          expiresAt,
-          vercelUsername: "afonso",
-        }),
+    const expiresAt = daqui(86_400_000);
+    fakeDb({
+      findOne: async () => ({
+        ciphertext: encryptToken(TOKEN, USER_ID),
+        last4: "1234",
+        expiresAt,
+        vercelUsername: "afonso",
       }),
-    } as never);
+    });
 
     const status = await tokenStatus(USER_ID);
     expect(status).toEqual({ last4: "1234", expiresAt, vercelUsername: "afonso" });
-    expect(JSON.stringify(status)).not.toContain("vcp_secreto");
+    expect(JSON.stringify(status)).not.toContain(TOKEN);
+  });
+
+  it("devolve null quando o documento venceu", async () => {
+    fakeDb({ findOne: async () => ({ last4: "1234", expiresAt: daqui(-1) }) });
+    expect(await tokenStatus(USER_ID)).toBeNull();
+  });
+});
+
+describe("forgetToken", () => {
+  it("apaga o registro do usuario", async () => {
+    const deleteOne = vi.fn().mockResolvedValue({});
+    fakeDb({ deleteOne });
+
+    await forgetToken(USER_ID);
+
+    expect(String(deleteOne.mock.calls[0][0].userId)).toBe(USER_ID);
+  });
+
+  it("ignora userId invalido", async () => {
+    await forgetToken("nao-e-objectid");
+    expect(getDb).not.toHaveBeenCalled();
   });
 });
