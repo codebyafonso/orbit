@@ -206,6 +206,100 @@ export async function listProjects(
   return { projects, truncated };
 }
 
+export type Deployment = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  state: string | null;
+  target: string | null;
+  source: string | null;
+  createdAt: number;
+  /** Duracao do build em ms, quando a API informou inicio e fim. */
+  buildMs: number | null;
+  inspectorUrl: string | null;
+};
+
+type RawTimelineDeployment = {
+  uid?: string;
+  projectId?: string;
+  name?: string;
+  state?: string;
+  readyState?: string;
+  target?: string | null;
+  source?: string;
+  created?: number;
+  createdAt?: number;
+  buildingAt?: number;
+  ready?: number;
+  inspectorUrl?: string;
+};
+
+/**
+ * Deploys de todos os projetos, do mais recente para o mais antigo.
+ *
+ * A interface da Vercel so mostra o historico projeto a projeto; e daqui que
+ * saem a linha do tempo unificada e as tendencias.
+ */
+const MAX_PAGINAS = 30;
+
+export async function listDeployments(
+  auth: VercelAuth,
+  { max = 200, desde }: { max?: number; desde?: number } = {},
+): Promise<{ deployments: Deployment[]; truncated: boolean }> {
+  const saida: Deployment[] = [];
+  const vistos = new Set<string>();
+  let until: number | null = null;
+  let truncated = false;
+
+  for (let pagina = 0; pagina < MAX_PAGINAS; pagina++) {
+    if (saida.length >= max) {
+      truncated = true; // a janela pedida nao coube: quem chama precisa avisar
+      break;
+    }
+
+    const qs = new URLSearchParams({ limit: String(Math.min(100, max - saida.length)) });
+    if (until) qs.set("until", String(until));
+    if (desde) qs.set("since", String(desde));
+
+    const page: {
+      deployments: RawTimelineDeployment[];
+      pagination?: { next: number | null };
+    } = await call(auth, `/v6/deployments?${qs}`);
+
+    if (page.deployments.length === 0) break;
+
+    for (const d of page.deployments) {
+      const id = d.uid;
+      const createdAt = d.createdAt ?? d.created ?? null;
+      // Sem id ou sem data o registro nao serve: viraria key duplicada na lista
+      // e 01/01/1970 na linha do tempo.
+      if (!id || !createdAt) continue;
+      // O cursor `until` e inclusivo na fronteira: sem isto, deploys com o mesmo
+      // createdAt aparecem duas vezes e inflam as estatisticas.
+      if (vistos.has(id)) continue;
+      vistos.add(id);
+
+      saida.push({
+        id,
+        projectId: d.projectId ?? "",
+        projectName: d.name ?? "",
+        state: d.readyState ?? d.state ?? null,
+        target: d.target ?? null,
+        source: d.source ?? null,
+        createdAt,
+        buildMs: d.ready && d.buildingAt ? d.ready - d.buildingAt : null,
+        inspectorUrl: d.inspectorUrl ?? null,
+      });
+    }
+
+    until = page.pagination?.next ?? null;
+    if (until === null) break;
+    if (pagina === MAX_PAGINAS - 1) truncated = true;
+  }
+
+  return { deployments: saida, truncated };
+}
+
 export async function getProject(auth: VercelAuth, idOrName: string): Promise<Project> {
   return normalize(await call<RawProject>(auth, `/v9/projects/${encodeURIComponent(idOrName)}`));
 }

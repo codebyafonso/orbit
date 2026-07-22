@@ -63,6 +63,18 @@ async function connect(): Promise<Db | null> {
       .catch((err) => console.error("indice sid sessions falhou:", sanitize(err)));
 
     void db
+      .collection("snapshots")
+      .createIndex({ userId: 1, dia: 1 }, { unique: true })
+      .catch((err) => console.error("indice snapshots falhou:", sanitize(err)));
+
+    // Seis meses de memoria bastam para comparar meses; sem TTL a colecao
+    // cresceria para sempre, inclusive com dados de contas ja apagadas.
+    void db
+      .collection("snapshots")
+      .createIndex({ at: 1 }, { expireAfterSeconds: 180 * 24 * 60 * 60 })
+      .catch((err) => console.error("indice ttl snapshots falhou:", sanitize(err)));
+
+    void db
       .collection("rate_limits")
       .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
       .catch((err) => console.error("indice ttl rate_limits falhou:", sanitize(err)));

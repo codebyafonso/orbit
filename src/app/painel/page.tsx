@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import type { Project } from "@/lib/vercel";
 import DeleteDialog, { type DeleteResult } from "@/components/DeleteDialog";
 import TokenGate from "@/components/TokenGate";
+import Radar from "@/components/Radar";
+import Atividade from "@/components/Atividade";
+import type { ProjetoAvaliado, Tendencias } from "@/lib/insights";
+import type { Deployment } from "@/lib/vercel";
+import type { Snapshot } from "@/lib/snapshots";
 
 type ApiResponse = {
   projects?: Project[];
@@ -14,6 +19,17 @@ type ApiResponse = {
 };
 
 type TokenStatus = { diasRestantes: number; vercelUsername: string | null } | null;
+
+type Insights = {
+  radar: ProjetoAvaliado[];
+  tendencias: Tendencias;
+  historico: Snapshot[];
+  timeline: Pick<Deployment, "id" | "projectName" | "state" | "target" | "createdAt" | "buildMs">[];
+  totalProjetos: number;
+  truncado: boolean;
+};
+
+type Aba = "projetos" | "radar" | "atividade";
 
 /** 428 = a conta existe, mas o token expirou ou nunca foi informado. */
 class PrecisaToken extends Error {}
@@ -50,12 +66,16 @@ export default function Home() {
   const [truncated, setTruncated] = useState(false);
   const [precisaToken, setPrecisaToken] = useState(false);
   const [tokenStatus, setTokenStatus] = useState<TokenStatus>(null);
+  const [aba, setAba] = useState<Aba>("projetos");
+  const [insights, setInsights] = useState<Insights | null>(null);
+  const [carregandoInsights, setCarregandoInsights] = useState(false);
+  const [erroInsights, setErroInsights] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
 
   async function fetchProjects(): Promise<ApiResponse> {
     const res = await fetch("/api/projects");
     if (res.status === 401) {
-      window.location.href = "/?erro=sessao-expirada";
+      window.location.assign("/?erro=sessao-expirada");
       throw new Error("Sessao expirada.");
     }
     const data = (await res.json()) as ApiResponse;
@@ -95,6 +115,7 @@ export default function Home() {
       setTruncated(data.truncated ?? false);
       setPrecisaToken(false);
       setSelected(new Set());
+      setInsights(null); // dados velhos nao podem sobreviver a um recarregar
       void carregarStatusDoToken();
     } catch (e) {
       if (e instanceof PrecisaToken) setPrecisaToken(true);
@@ -104,9 +125,34 @@ export default function Home() {
     }
   }
 
+  async function carregarInsights() {
+    setCarregandoInsights(true);
+    setErroInsights(null);
+    try {
+      const res = await fetch("/api/insights");
+      if (res.status === 401) {
+        window.location.assign("/?erro=sessao-expirada");
+        return;
+      }
+      const data = (await res.json()) as Insights & { error?: string; needsToken?: boolean };
+      if (res.status === 428 || data.needsToken) {
+        setPrecisaToken(true);
+        return;
+      }
+      if (!res.ok) throw new Error(data.error ?? "Nao foi possivel calcular os insights.");
+      setInsights(data);
+    } catch (e) {
+      // Sem isto o usuario ficaria olhando um esqueleto cinza para sempre.
+      setInsights(null);
+      setErroInsights((e as Error).message);
+    } finally {
+      setCarregandoInsights(false);
+    }
+  }
+
   async function sair() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-    window.location.href = "/";
+    window.location.assign("/");
   }
 
   // carga inicial: nenhum setState sincrono dentro do effect
@@ -156,10 +202,32 @@ export default function Home() {
     });
   }, [projects, query, sort]);
 
+  function irPara(destino: Aba) {
+    setAba(destino);
+    // Os insights custam varias chamadas a API: so buscamos quando alguem olha.
+    if (destino !== "projetos" && !insights && !carregandoInsights) void carregarInsights();
+  }
+
   const live = projects.filter((p) => p.latestDeployment?.state === "READY").length;
+  /**
+   * Ids que a aba corrente realmente exibe. A selecao e um conjunto so, entao
+   * sem este recorte daria para marcar 5 projetos na grade, trocar de aba e
+   * apagar itens que nao estao na tela.
+   */
+  const idsVisiveisNaAba = useMemo(() => {
+    if (aba === "projetos") return new Set(visible.map((p) => p.id));
+    if (aba === "radar") return new Set((insights?.radar ?? []).map((r) => r.id));
+    return new Set<string>(); // atividade nao seleciona nada
+  }, [aba, visible, insights]);
+
   const selectedProjects = useMemo(
-    () => projects.filter((p) => selected.has(p.id)),
-    [projects, selected],
+    () => projects.filter((p) => selected.has(p.id) && idsVisiveisNaAba.has(p.id)),
+    [projects, selected, idsVisiveisNaAba],
+  );
+
+  const ocultosSelecionados = useMemo(
+    () => [...selected].filter((id) => !idsVisiveisNaAba.has(id)).length,
+    [selected, idsVisiveisNaAba],
   );
   const allVisibleSelected = visible.length > 0 && visible.every((p) => selected.has(p.id));
 
@@ -224,10 +292,50 @@ export default function Home() {
         </div>
       </header>
 
+      {/* ── abas ────────────────────────────────────────────────── */}
+      {!precisaToken && !error && (
+        <nav
+          role="tablist"
+          aria-label="Secoes do painel"
+          className="rise mt-6 flex border-b border-line"
+          style={{ animationDelay: "40ms" }}
+        >
+          {(
+            [
+              ["projetos", "projetos"],
+              ["radar", "radar de higiene"],
+              ["atividade", "atividade"],
+            ] as const
+          ).map(([chave, rotulo]) => (
+            <button
+              key={chave}
+              role="tab"
+              aria-selected={aba === chave}
+              onClick={() => irPara(chave)}
+              className="relative px-5 py-3 text-xs tracking-[0.15em] uppercase transition-colors"
+              style={{ color: aba === chave ? "#ffb020" : "#7c848d" }}
+            >
+              {rotulo}
+              {chave === "radar" && insights && insights.radar.length > 0 && (
+                <span
+                  className="ml-2 border px-1.5 py-0.5 text-[10px]"
+                  style={{ borderColor: "#ff4a35", color: "#ff8a78" }}
+                >
+                  {insights.radar.length}
+                </span>
+              )}
+              {aba === chave && (
+                <span className="absolute right-0 -bottom-px left-0 h-px bg-signal" />
+              )}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {/* ── filtros ─────────────────────────────────────────────── */}
       <div
         className="rise mt-6 flex flex-wrap items-center gap-3"
-        style={{ animationDelay: "80ms" }}
+        style={{ animationDelay: "80ms", display: aba === "projetos" ? undefined : "none" }}
       >
         <div className="relative min-w-[220px] flex-1">
           <span className="tick pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2">
@@ -287,6 +395,59 @@ export default function Home() {
             <div key={i} className="sweep instrument h-44 bg-panel" />
           ))}
         </div>
+      ) : aba !== "projetos" && erroInsights ? (
+        <div className="instrument mt-6 bg-panel p-6" style={{ borderColor: "rgba(255,74,53,0.4)" }}>
+          <p className="tick" style={{ color: "#ff8a78" }}>
+            falha ao calcular
+          </p>
+          <p className="h-display mt-2 text-xl">{erroInsights}</p>
+          <button
+            onClick={() => void carregarInsights()}
+            className="mt-5 border border-line px-4 py-2.5 text-xs tracking-[0.15em] uppercase transition-colors hover:bg-panel-2"
+          >
+            tentar de novo
+          </button>
+        </div>
+      ) : aba === "radar" ? (
+        carregandoInsights || !insights ? (
+          <div className="sweep instrument mt-6 h-40 bg-panel" />
+        ) : (
+          <Radar
+            itens={insights.radar}
+            total={insights.totalProjetos}
+            selecionados={selected}
+            onAlternar={toggle}
+            onSelecionarTodos={(ids) => {
+              setSelected((prev) => {
+                const todos = ids.every((id) => prev.has(id));
+                const next = new Set(prev);
+                ids.forEach((id) => (todos ? next.delete(id) : next.add(id)));
+                return next;
+              });
+            }}
+          />
+        )
+      ) : aba === "atividade" ? (
+        carregandoInsights || !insights ? (
+          <div className="sweep instrument mt-6 h-40 bg-panel" />
+        ) : (
+          <>
+          {insights.truncado && (
+            <p
+              className="mt-4 border px-4 py-2.5 text-xs"
+              style={{ borderColor: "#ffb020", color: "#ffb020" }}
+            >
+              A conta tem mais deploys do que cabe nesta janela: os numeros abaixo cobrem apenas os
+              mais recentes.
+            </p>
+          )}
+          <Atividade
+            tendencias={insights.tendencias}
+            timeline={insights.timeline}
+            historico={insights.historico}
+          />
+          </>
+        )
       ) : visible.length === 0 ? (
         <div className="instrument mt-6 bg-panel px-6 py-16 text-center">
           <p className="h-display text-xl">Nenhum projeto encontrado</p>
@@ -415,6 +576,7 @@ export default function Home() {
             </span>{" "}
             <span className="text-ash">
               {selectedProjects.length === 1 ? "selecionado" : "selecionados"}
+              {ocultosSelecionados > 0 && ` (${ocultosSelecionados} fora desta aba)`}
             </span>
           </span>
           <button
@@ -447,6 +609,8 @@ export default function Home() {
               return next;
             });
             setTargets(null);
+            setInsights(null);
+            if (aba !== "projetos" && !carregandoInsights) void carregarInsights();
             setToast(
               r.failed.length
                 ? {
