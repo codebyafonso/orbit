@@ -6,6 +6,7 @@ import DeleteDialog, { type DeleteResult } from "@/components/DeleteDialog";
 import TokenGate from "@/components/TokenGate";
 import Radar from "@/components/Radar";
 import Atividade from "@/components/Atividade";
+import Conta from "@/components/Conta";
 import type { ProjetoAvaliado, Tendencias } from "@/lib/vercel/insights";
 import type { Deployment } from "@/lib/vercel/client";
 import type { Snapshot } from "@/lib/db/snapshots";
@@ -29,7 +30,7 @@ type Insights = {
   truncado: boolean;
 };
 
-type Aba = "projetos" | "radar" | "atividade";
+type Aba = "projetos" | "radar" | "atividade" | "conta";
 
 /** 428 = a conta existe, mas o token expirou ou nunca foi informado. */
 class PrecisaToken extends Error {}
@@ -205,7 +206,8 @@ export default function Home() {
   function irPara(destino: Aba) {
     setAba(destino);
     // Os insights custam varias chamadas a API: so buscamos quando alguem olha.
-    if (destino !== "projetos" && !insights && !carregandoInsights) void carregarInsights();
+    const precisaDeInsights = destino === "radar" || destino === "atividade";
+    if (precisaDeInsights && !insights && !carregandoInsights) void carregarInsights();
   }
 
   const live = projects.filter((p) => p.latestDeployment?.state === "READY").length;
@@ -217,7 +219,7 @@ export default function Home() {
   const idsVisiveisNaAba = useMemo(() => {
     if (aba === "projetos") return new Set(visible.map((p) => p.id));
     if (aba === "radar") return new Set((insights?.radar ?? []).map((r) => r.id));
-    return new Set<string>(); // atividade nao seleciona nada
+    return new Set<string>(); // atividade e conta nao selecionam nada
   }, [aba, visible, insights]);
 
   const selectedProjects = useMemo(
@@ -305,6 +307,7 @@ export default function Home() {
               ["projetos", "projetos"],
               ["radar", "radar de higiene"],
               ["atividade", "atividade"],
+              ["conta", "conta"],
             ] as const
           ).map(([chave, rotulo]) => (
             <button
@@ -395,7 +398,7 @@ export default function Home() {
             <div key={i} className="sweep instrument h-44 bg-panel" />
           ))}
         </div>
-      ) : aba !== "projetos" && erroInsights ? (
+      ) : aba !== "projetos" && aba !== "conta" && erroInsights ? (
         <div className="instrument mt-6 bg-panel p-6" style={{ borderColor: "rgba(255,74,53,0.4)" }}>
           <p className="tick" style={{ color: "#ff8a78" }}>
             falha ao calcular
@@ -427,6 +430,8 @@ export default function Home() {
             }}
           />
         )
+      ) : aba === "conta" ? (
+        <Conta tokenAtivo={tokenStatus !== null} />
       ) : aba === "atividade" ? (
         carregandoInsights || !insights ? (
           <div className="sweep instrument mt-6 h-40 bg-panel" />

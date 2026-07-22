@@ -17,7 +17,9 @@ vi.mock("@/lib/auth/session", () => ({
   destroySession: vi.fn(),
   SESSION_COOKIE: "orbit_session",
 }));
-vi.mock("@/lib/auth/rate-limit", () => ({
+// respostaDoLimite fica real: e ela que define 429 vs 503, e o teste verifica isso.
+vi.mock("@/lib/auth/rate-limit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/rate-limit")>()),
   rateLimit: vi.fn(),
   resetLimit: vi.fn(),
   clientIp: () => "1.2.3.4",

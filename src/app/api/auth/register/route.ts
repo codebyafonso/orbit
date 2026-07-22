@@ -4,21 +4,11 @@ import { saveToken } from "@/lib/db/tokens";
 import { whoami, VercelError } from "@/lib/vercel/client";
 import { startSession } from "@/lib/auth/session";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
-import { rateLimit, clientIp, type RateVerdict } from "@/lib/auth/rate-limit";
+import { rateLimit, respostaDoLimite, clientIp } from "@/lib/auth/rate-limit";
 import { asString, asSecret, LIMITES } from "@/lib/auth/input";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // @node-rs/argon2 e modulo nativo
-
-function respostaDoLimite(v: Exclude<RateVerdict, { ok: true }>) {
-  if (v.motivo === "indisponivel") {
-    return NextResponse.json({ error: "Servico indisponivel. Tente em instantes." }, { status: 503 });
-  }
-  return NextResponse.json(
-    { error: "Muitas tentativas. Tente mais tarde." },
-    { status: 429, headers: { "Retry-After": String(v.retryAfterSeconds) } },
-  );
-}
 
 export async function POST(req: Request) {
   const cross = requireSameOrigin(req);

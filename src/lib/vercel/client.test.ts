@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { normalize, repoFrom, listProjects, whoami, VercelError } from "./client";
+import { normalize, repoFrom, listProjects, listDeployments, whoami, VercelError } from "./client";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -117,5 +117,81 @@ describe("whoami", () => {
       status: 403,
     });
     await expect(whoami({ token: "x" })).rejects.toBeInstanceOf(VercelError);
+  });
+});
+
+describe("listDeployments", () => {
+  it("agrega paginas, respeita o cursor e nao duplica na fronteira", async () => {
+    const fn = mockFetch([
+      {
+        deployments: [
+          { uid: "d1", name: "app", createdAt: 300, readyState: "READY" },
+          { uid: "d2", name: "app", createdAt: 200, readyState: "ERROR" },
+        ],
+        pagination: { next: 200 },
+      },
+      {
+        // d2 volta porque o cursor `until` e inclusivo na fronteira
+        deployments: [
+          { uid: "d2", name: "app", createdAt: 200, readyState: "ERROR" },
+          { uid: "d3", name: "app", createdAt: 100, readyState: "READY" },
+        ],
+        pagination: { next: null },
+      },
+    ]);
+
+    const r = await listDeployments({ token: "tok" });
+
+    expect(r.deployments.map((d) => d.id)).toEqual(["d1", "d2", "d3"]);
+    expect(r.truncated).toBe(false);
+    expect(String(fn.mock.calls[1][0])).toContain("until=200");
+  });
+
+  it("repassa a janela pedida como since", async () => {
+    const fn = mockFetch([{ deployments: [], pagination: { next: null } }]);
+    await listDeployments({ token: "tok" }, { desde: 12345 });
+    expect(String(fn.mock.calls[0][0])).toContain("since=12345");
+  });
+
+  it("marca truncated quando o teto e atingido antes do fim", async () => {
+    const fn = mockFetch([
+      { deployments: [{ uid: "d1", name: "a", createdAt: 300 }], pagination: { next: 200 } },
+    ]);
+    const r = await listDeployments({ token: "tok" }, { max: 1 });
+
+    expect(r.truncated).toBe(true);
+    expect(r.deployments).toHaveLength(1);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("descarta registro sem uid ou sem data", async () => {
+    mockFetch([
+      {
+        deployments: [
+          { name: "sem-uid", createdAt: 300 },
+          { uid: "d2", name: "sem-data" },
+          { uid: "d3", name: "ok", createdAt: 100 },
+        ],
+        pagination: { next: null },
+      },
+    ]);
+
+    const r = await listDeployments({ token: "tok" });
+    expect(r.deployments.map((d) => d.id)).toEqual(["d3"]);
+  });
+
+  it("calcula a duracao do build so quando ha inicio e fim", async () => {
+    mockFetch([
+      {
+        deployments: [
+          { uid: "d1", name: "a", createdAt: 300, buildingAt: 1000, ready: 4000 },
+          { uid: "d2", name: "a", createdAt: 200, buildingAt: 1000 },
+        ],
+        pagination: { next: null },
+      },
+    ]);
+
+    const r = await listDeployments({ token: "tok" });
+    expect(r.deployments.map((d) => d.buildMs)).toEqual([3000, null]);
   });
 });

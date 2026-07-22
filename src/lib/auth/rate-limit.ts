@@ -12,6 +12,22 @@ export type RateVerdict =
   | { ok: false; motivo: "limite"; retryAfterSeconds: number }
   | { ok: false; motivo: "indisponivel" };
 
+import { NextResponse } from "next/server";
+
+/** Traduz o veredito em resposta HTTP. Banco fora nao e "muitas tentativas". */
+export function respostaDoLimite(v: Exclude<RateVerdict, { ok: true }>) {
+  if (v.motivo === "indisponivel") {
+    return NextResponse.json(
+      { error: "Servico indisponivel. Tente em instantes." },
+      { status: 503 },
+    );
+  }
+  return NextResponse.json(
+    { error: "Muitas tentativas. Tente mais tarde." },
+    { status: 429, headers: { "Retry-After": String(v.retryAfterSeconds) } },
+  );
+}
+
 export async function rateLimit(
   chave: string,
   { max, janelaSegundos }: { max: number; janelaSegundos: number },
