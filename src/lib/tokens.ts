@@ -9,7 +9,6 @@ const MIN_TOKEN_LEN = 20;
 
 type TokenDoc = {
   ciphertext?: unknown;
-  last4?: unknown;
   teamId?: unknown;
   vercelUsername?: unknown;
   expiresAt?: unknown;
@@ -62,7 +61,6 @@ export async function saveToken(p: {
       $set: {
         // AAD = userId: o ciphertext so decifra no documento do proprio dono.
         ciphertext: encryptToken(p.token, p.userId),
-        last4: p.token.slice(-4),
         teamId: p.teamId ?? null,
         vercelUsername: p.vercelUsername,
         updatedAt: new Date(),
@@ -96,15 +94,18 @@ export async function loadToken(
   };
 }
 
-/** Metadados para a interface. Nunca inclui o token. */
+/**
+ * Metadados para a interface. Nao expoe nem um pedaco do token: os quatro
+ * ultimos caracteres nao ajudariam um ataque, mas tambem nao sao necessarios
+ * para nada — a validade e a conta ja identificam a conexao.
+ */
 export async function tokenStatus(
   userId: string,
-): Promise<{ last4: string; expiresAt: Date; vercelUsername: string | null } | null> {
+): Promise<{ expiresAt: Date; vercelUsername: string | null } | null> {
   const doc = await liveDoc(userId);
-  if (!doc || typeof doc.last4 !== "string") return null;
+  if (!doc) return null;
 
   return {
-    last4: doc.last4,
     expiresAt: doc.expiresAt as Date,
     vercelUsername: typeof doc.vercelUsername === "string" ? doc.vercelUsername : null,
   };

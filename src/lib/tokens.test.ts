@@ -42,7 +42,8 @@ describe("saveToken", () => {
     expect(String(filtro.userId)).toBe(USER_ID);
     expect(opcoes).toEqual({ upsert: true });
     expect(update.$set.ciphertext).not.toContain(TOKEN);
-    expect(update.$set.last4).toBe("1234");
+    // nenhum pedaco do token e guardado em claro, nem para exibicao
+    expect(JSON.stringify(update.$set)).not.toContain(TOKEN.slice(-4));
     // createdAt so na criacao: trocar o token nao pode reescrever a origem
     expect(update.$setOnInsert.createdAt).toBeInstanceOf(Date);
     expect(update.$set.createdAt).toBeUndefined();
@@ -140,19 +141,18 @@ describe("tokenStatus", () => {
     fakeDb({
       findOne: async () => ({
         ciphertext: encryptToken(TOKEN, USER_ID),
-        last4: "1234",
         expiresAt,
         vercelUsername: "afonso",
       }),
     });
 
     const status = await tokenStatus(USER_ID);
-    expect(status).toEqual({ last4: "1234", expiresAt, vercelUsername: "afonso" });
+    expect(status).toEqual({ expiresAt, vercelUsername: "afonso" });
     expect(JSON.stringify(status)).not.toContain(TOKEN);
   });
 
   it("devolve null quando o documento venceu", async () => {
-    fakeDb({ findOne: async () => ({ last4: "1234", expiresAt: daqui(-1) }) });
+    fakeDb({ findOne: async () => ({ expiresAt: daqui(-1) }) });
     expect(await tokenStatus(USER_ID)).toBeNull();
   });
 });

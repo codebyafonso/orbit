@@ -13,7 +13,7 @@ type ApiResponse = {
   needsToken?: boolean;
 };
 
-type TokenStatus = { last4: string; diasRestantes: number; vercelUsername: string | null } | null;
+type TokenStatus = { diasRestantes: number; vercelUsername: string | null } | null;
 
 /** 428 = a conta existe, mas o token expirou ou nunca foi informado. */
 class PrecisaToken extends Error {}
@@ -68,14 +68,13 @@ export default function Home() {
     const res = await fetch("/api/token");
     if (!res.ok) return;
     const data = (await res.json()) as {
-      status: { last4: string; expiresAt: string; vercelUsername: string | null } | null;
+      status: { expiresAt: string; vercelUsername: string | null } | null;
     };
     // Os dias sao calculados aqui, e nao durante o render: o componente precisa
     // ser puro, e Date.now() no corpo dele produz resultado instavel.
     setTokenStatus(
       data.status
         ? {
-            last4: data.status.last4,
             vercelUsername: data.status.vercelUsername,
             diasRestantes: Math.ceil(
               (new Date(data.status.expiresAt).getTime() - Date.now()) / 86_400_000,
@@ -497,7 +496,7 @@ function TokenBadge({
   return (
     <p className="mt-3 flex flex-wrap items-center gap-2 text-xs">
       <span className="tick">token</span>
-      <span className="border border-line px-2 py-1 text-bone">•••• {status.last4}</span>
+      <span className="border border-line px-2 py-1 text-bone">conectado</span>
       <span style={{ color: urgente ? "#ff8a78" : "#7c848d" }}>
         expira em {dias} {dias === 1 ? "dia" : "dias"}
       </span>
