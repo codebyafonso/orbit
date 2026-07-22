@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteProject, getProject, VercelError } from "@/lib/vercel";
+import { deleteProject, getProject, authFromEnv, VercelError } from "@/lib/vercel";
 import { requireDevOnly, requireSameOrigin } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,8 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
 
     // Segunda barreira, no servidor: o nome digitado precisa bater com o projeto
     // real. A resposta nao ecoa o nome, para nao virar um oraculo de nomes.
-    const project = await getProject(id);
+    const auth = authFromEnv();
+    const project = await getProject(auth, id);
     if (body.confirm?.trim() !== project.name) {
       return NextResponse.json(
         { error: "Confirmacao invalida: o nome digitado nao corresponde ao projeto." },
@@ -23,7 +24,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       );
     }
 
-    await deleteProject(project.id);
+    await deleteProject(auth, project.id);
     return NextResponse.json({ deleted: project.name });
   } catch (err) {
     if (err instanceof VercelError) {
