@@ -27,12 +27,23 @@ async function connect(): Promise<Db | null> {
     // vercelUserId) nao pode derrubar um banco saudavel.
     void db
       .collection("users")
-      .createIndex({ vercelUserId: 1 }, { unique: true })
+      .createIndex({ email: 1 }, { unique: true })
       .catch((err) => console.error("indice users falhou:", sanitize(err)));
     void db
       .collection("audit_logs")
-      .createIndex({ vercelUserId: 1, at: -1 })
+      .createIndex({ userId: 1, at: -1 })
       .catch((err) => console.error("indice audit_logs falhou:", sanitize(err)));
+
+    // expireAfterSeconds: 0 => o Mongo apaga o documento quando expiresAt vence.
+    // E o banco que esquece o token, sem depender de rotina da aplicacao.
+    void db
+      .collection("vercel_tokens")
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+      .catch((err) => console.error("indice ttl vercel_tokens falhou:", sanitize(err)));
+    void db
+      .collection("vercel_tokens")
+      .createIndex({ userId: 1 }, { unique: true })
+      .catch((err) => console.error("indice userId vercel_tokens falhou:", sanitize(err)));
 
     return db;
   } catch (err) {

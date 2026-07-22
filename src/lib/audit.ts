@@ -9,7 +9,7 @@ export type AuditEntry = {
 };
 
 export async function recordDeletion(e: {
-  vercelUserId: string;
+  userId: string;
   projectId: string;
   projectName: string;
   result: "ok" | "error";
@@ -18,7 +18,7 @@ export async function recordDeletion(e: {
   const db = await getDb();
   if (!db) return; // auditoria e desejavel, nao pode bloquear a operacao
   await db.collection("audit_logs").insertOne({
-    vercelUserId: e.vercelUserId,
+    userId: e.userId,
     action: "project.delete",
     projectId: e.projectId,
     projectName: e.projectName,
@@ -28,12 +28,12 @@ export async function recordDeletion(e: {
   });
 }
 
-export async function listDeletions(vercelUserId: string, limit = 50): Promise<AuditEntry[]> {
+export async function listDeletions(userId: string, limit = 50): Promise<AuditEntry[]> {
   const db = await getDb();
   if (!db) return [];
   const docs = await db
     .collection("audit_logs")
-    .find({ vercelUserId })
+    .find({ userId })
     .sort({ at: -1 })
     .limit(limit)
     .toArray();

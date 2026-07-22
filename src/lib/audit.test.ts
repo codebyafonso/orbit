@@ -8,7 +8,7 @@ import { getDb } from "./mongo";
 import { recordDeletion, listDeletions } from "./audit";
 
 const entrada = {
-  vercelUserId: "usr_1",
+  userId: "usr_1",
   projectId: "prj_1",
   projectName: "app",
   result: "ok" as const,
@@ -39,7 +39,7 @@ describe("com banco", () => {
 
     expect(insertOne).toHaveBeenCalledTimes(1);
     expect(insertOne.mock.calls[0][0]).toMatchObject({
-      vercelUserId: "usr_1",
+      userId: "usr_1",
       action: "project.delete",
       projectId: "prj_1",
       projectName: "app",
@@ -65,6 +65,6 @@ describe("com banco", () => {
     await expect(listDeletions("usr_1")).resolves.toEqual([
       { projectId: "prj_9", projectName: "velho", result: "error", error: "falhou", at },
     ]);
-    expect(find).toHaveBeenCalledWith({ vercelUserId: "usr_1" });
+    expect(find).toHaveBeenCalledWith({ userId: "usr_1" });
   });
 });
